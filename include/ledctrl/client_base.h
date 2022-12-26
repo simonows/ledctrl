@@ -47,7 +47,7 @@ public:
 
     virtual ~LedClient() override;
 
-    SocketStatus connectTo(uint32_t host, uint16_t port) noexcept;
+    SocketStatus connectTo(const std::string&, uint16_t port) noexcept;
     virtual SocketStatus disconnect() noexcept override;
 
     virtual SocketStatus getStatus() const override { return _status; }

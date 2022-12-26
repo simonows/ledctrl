@@ -55,7 +55,7 @@ enum class SocketType : uint8_t
     server_socket = 1
 };
 
-constexpr uint32_t LOCALHOST_IP = 0x0100007f;
+static const std::string LOCALHOST_IP = "127.0.0.1";
 
 class ThreadPool
 {

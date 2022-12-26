@@ -6,16 +6,6 @@
 
 using namespace mega_camera;
 
-std::string getHostStr(uint32_t ip, uint16_t port)
-{
-    return std::string()
-      + std::to_string(int(reinterpret_cast<char*>(&ip)[0])) + '.'
-      + std::to_string(int(reinterpret_cast<char*>(&ip)[1])) + '.'
-      + std::to_string(int(reinterpret_cast<char*>(&ip)[2])) + '.'
-      + std::to_string(int(reinterpret_cast<char*>(&ip)[3])) + ':'
-      + std::to_string(static_cast<int>(port));
-}
-
 void run_client(LedClient& client)
 {
     using namespace std::chrono_literals;
@@ -41,12 +31,11 @@ void run_client(LedClient& client)
     client.sendData("get-led-rate 3\n");
 }
 
-int main(int, char**) {
-  LedClient client;
+int main(int, char**)
+{
+    LedClient client;
+    run_client(client);
+    client.joinHandler();
 
-  run_client(client);
-
-  client.joinHandler();
-
-  return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }

@@ -34,7 +34,7 @@ LedClient::~LedClient()
     delete recv_thread;
 }
 
-SocketStatus LedClient::connectTo(uint32_t host, uint16_t port) noexcept
+SocketStatus LedClient::connectTo(const std::string &host, uint16_t port) noexcept
 {
     if ((client_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0)
     {
@@ -43,7 +43,7 @@ SocketStatus LedClient::connectTo(uint32_t host, uint16_t port) noexcept
 
     new(&address) SocketAddr_in;
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = host;
+    address.sin_addr.s_addr = inet_addr(host.c_str());
     address.sin_port = htons(port);
 
     if (connect(client_socket, reinterpret_cast<sockaddr *>(&address), sizeof(address)) != 0)

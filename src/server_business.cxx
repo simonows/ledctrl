@@ -90,6 +90,7 @@ std::string set_led_state(std::string args)
 
 std::string get_led_state(std::string args)
 {
+    std::lock_guard lock(cons_mutex);
     switch (target.state)
     {
         case ON:
@@ -118,6 +119,7 @@ std::string set_led_color(std::string args)
 
 std::string get_led_color(std::string args)
 {
+    std::lock_guard lock(cons_mutex);
     switch (target.color)
     {
         case RED:
@@ -147,6 +149,7 @@ std::string set_led_rate(std::string args)
 
 std::string get_led_rate(std::string args)
 {
+    std::lock_guard lock(cons_mutex);
     char buf[100];
     std::snprintf(buf, sizeof(buf), "OK %u\n", target.rate);
     return std::string(buf);
