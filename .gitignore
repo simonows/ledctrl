@@ -1,0 +1,23 @@
+# Prerequisites
+*.d
+tags
+
+# Compiled Object files
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+
+*.a
+
+# Executables
+*.out
+
+# Builded library
+build/*
+build-*
