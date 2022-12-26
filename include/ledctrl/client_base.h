@@ -42,14 +42,6 @@ public:
       , _status(SocketStatus::disconnected)
     {}
 
-    LedClient(ThreadPool* thread_pool) noexcept :
-        address()
-      , client_socket()
-      , handle_mutex()
-      , recv_thread(nullptr)
-      , _status(SocketStatus::disconnected)
-    {}
-
     LedClient(const mega_camera::LedClient&) = delete;
     LedClient& operator=(const mega_camera::LedClient&) = delete;
 
@@ -64,7 +56,7 @@ public:
     void setHandler(handler_function_t handler);
     void joinHandler();
 
-    virtual bool sendData(const void* buffer, const size_t size) const override;
+    virtual bool sendData(std::string) const override;
     virtual SocketType getType() const override {return SocketType::client_socket;}
 };
 

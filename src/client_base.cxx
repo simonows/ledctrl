@@ -64,7 +64,7 @@ SocketStatus LedClient::disconnect() noexcept
     _status = SocketStatus::disconnected;
 
     if (recv_thread) recv_thread->join();
-    delete recv_thread;
+    //delete recv_thread;
 
     shutdown(client_socket, SD_BOTH);
     close(client_socket);
@@ -135,8 +135,10 @@ void LedClient::joinHandler()
     }
 }
 
-bool LedClient::sendData(const void* buffer, const size_t size) const
+bool LedClient::sendData(std::string str) const
 {
+    const char *buffer = str.data();
+    size_t size = str.length();
     void* send_buffer = malloc(size + sizeof(int));
 
     memcpy(reinterpret_cast<char*>(send_buffer) + sizeof(int), buffer, size);

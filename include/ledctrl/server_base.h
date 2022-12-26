@@ -53,6 +53,7 @@ struct LedServer
     SocketStatus start();
     void stop();
     void joinLoop();
+    static void print_screen(void);
 
 private:
     Socket serv_socket;
@@ -93,7 +94,7 @@ struct LedServer::Client : public LedClientBase
     virtual mega_camera::SocketStatus disconnect() override;
 
     virtual DataBuffer loadData() override;
-    virtual bool sendData(const void* buffer, const size_t size) const override;
+    virtual bool sendData(std::string) const override;
     virtual SocketType getType() const override { return SocketType::server_socket; }
 };
 

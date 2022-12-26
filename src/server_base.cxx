@@ -66,6 +66,7 @@ LedServer::SocketStatus LedServer::start()
         return _status = SocketStatus::err_socket_listening;
     }
 
+    print_screen();
     _status = SocketStatus::up;
 
     thread_pool.addJob([this]{handlingAcceptLoop();});
@@ -285,8 +286,11 @@ mega_camera::SocketStatus LedServer::Client::disconnect()
     return _status;
 }
 
-bool LedServer::Client::sendData(const void* buffer, const size_t size) const
+bool LedServer::Client::sendData(std::string str) const
 {
+    const char *buffer = str.data();
+    size_t size = str.length();
+
     if (_status != mega_camera::SocketStatus::connected)
     {
         return false;

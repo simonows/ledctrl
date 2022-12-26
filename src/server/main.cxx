@@ -4,26 +4,23 @@
 using namespace mega_camera;
 
 /*LedServer server(8014,
-{1, 1, 1}, // Keep alive setting
+{1, 1, 1},
 
-[](DataBuffer data, LedServer::Client& client){ // Data handler
-  std::cout << "Client  send data [ " << data.size() << " bytes ]: " << reinterpret_cast<char*>(data.data()) << '\n';
-  client.sendData("Hello, client!\0", sizeof("Hello, client!\0"));
+[](DataBuffer data, LedServer::Client& client){
 },
 
-[](LedServer::Client& client) { // Connect handler
+[](LedServer::Client& client) {
   std::cout << "Client connected\n";
 },
 
-[](LedServer::Client& client) { // Disconnect handler
+[](LedServer::Client& client) {
   std::cout << "Client disconnected\n";
 },
 
 std::thread::hardware_concurrency()
 );*/
 
-LedServer server(8014,
-{1, 1, 1});
+LedServer server(8014);
 
 int main()
 {

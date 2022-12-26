@@ -166,7 +166,7 @@ struct LedClientBase
     virtual ~LedClientBase() {};
     virtual SocketStatus disconnect() = 0;
     virtual SocketStatus getStatus() const = 0;
-    virtual bool sendData(const void* buffer, const size_t size) const = 0;
+    virtual bool sendData(std::string) const = 0;
     virtual DataBuffer loadData() = 0;
     virtual SocketType getType() const = 0;
 };
