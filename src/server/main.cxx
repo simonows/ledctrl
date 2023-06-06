@@ -1,5 +1,6 @@
 #include <ledctrl/server_base.h>
 #include <iostream>
+#include <signal.h>
 
 using namespace mega_camera;
 
@@ -22,13 +23,31 @@ using namespace mega_camera;
 
 LedServer server(8014);
 
+static void intHandler(int dummy)
+{
+    server.stop();
+}
+
 int main()
 {
+    struct sigaction act;
+    act.sa_handler = &intHandler;
+    sigfillset(&act.sa_mask);
+    act.sa_flags = 0;
+
+    if (sigaction(SIGINT, &act, NULL) == -1)
+    {
+        std::cout << "Error: Unable to handle SIGINT" << std::endl;
+        return EXIT_FAILURE;
+    }
+
     try
     {
-        if (server.start() == LedServer::SocketStatus::up) {
+        if (server.start() == LedServer::SocketStatus::up)
+        {
             server.joinLoop();
-            return EXIT_SUCCESS;
+            std::cout << std::endl << "Server stopped" << std::endl;
+            _exit(EXIT_SUCCESS);
         }
         else
         {

@@ -2,6 +2,7 @@
 #define __LED_SERVER_H__
 
 #include "general.h"
+#include "thread_pool.h"
 
 #include <functional>
 #include <list>

@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <thread>
 
+static const std::string LOCALHOST_IP = "127.0.0.1";
+
 using namespace mega_camera;
 
 void run_client(LedClient& client)
@@ -29,13 +31,15 @@ void run_client(LedClient& client)
     client.sendData("get-led-color\n");
     client.sendData("set-led-rate 3\n");
     client.sendData("get-led-rate 3\n");
+    sleep(1); // wait for answers
+    client.disconnect();
 }
 
 int main(int, char**)
 {
     LedClient client;
+
     run_client(client);
-    client.joinHandler();
 
     return EXIT_SUCCESS;
 }

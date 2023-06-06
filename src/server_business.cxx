@@ -57,13 +57,13 @@ static std::map<std::string, HandlerFuncPtr> const CMD = {
 void LedServer::server_business(DataBuffer data, LedServer::Client& client)
 {
     std::string rc;
-    std::string input(reinterpret_cast<char*>(data.data()));
+    std::string input(reinterpret_cast<char*>(data.data()), 0, data.size());
     size_t com = input.find_first_of(" \n\0");
 
     auto it = CMD.find(input.substr(0, com));
     if (it == CMD.end())
     {
-        // TODO: make a warning log
+        // TODO: make a warning
         return;
     }
 

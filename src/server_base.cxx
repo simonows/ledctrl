@@ -7,7 +7,6 @@
 
 using namespace mega_camera;
 
-
 LedServer::LedServer(
     const uint16_t _port
   , KeepAliveConfig _ka_conf
@@ -38,18 +37,14 @@ LedServer::SocketStatus LedServer::start()
     SocketAddr_in address;
 
     if (_status == SocketStatus::up)
-    {
         stop();
-    }
 
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
     address.sin_family = AF_INET;
 
-    if ((serv_socket = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) == -1)
-    {
+    if ((serv_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1)
         return _status = SocketStatus::err_socket_init;
-    }
 
     bool p1 = setsockopt(serv_socket, SOL_SOCKET, SO_REUSEADDR, &flag,
         sizeof(flag)) == -1;
@@ -57,14 +52,10 @@ LedServer::SocketStatus LedServer::start()
         sizeof(address)) < 0;
 
     if (p1 || p2)
-    {
         return _status = SocketStatus::err_socket_bind;
-    }
 
     if (listen(serv_socket, SOMAXCONN) < 0)
-    {
         return _status = SocketStatus::err_socket_listening;
-    }
 
     print_screen();
     _status = SocketStatus::up;
@@ -77,26 +68,31 @@ LedServer::SocketStatus LedServer::start()
 
 void LedServer::stop()
 {
-    thread_pool.dropUnstartedJobs();
     _status = SocketStatus::close;
+    shutdown(serv_socket, SD_BOTH);
     close(serv_socket);
+    for (auto& cl : client_list)
+        cl->disconnect();
+    thread_pool.dropUnstartedJobs();
     client_list.clear();
 }
 
 void LedServer::joinLoop()
 {
-    thread_pool.join();
+    thread_pool.wait();
 }
 
 void LedServer::handlingAcceptLoop()
 {
     SockLen_t addrlen = sizeof(SocketAddr_in);
     SocketAddr_in client_addr;
+
+    // Accept new connection in blocking mode.
     Socket client_socket = accept4(
         serv_socket
       , reinterpret_cast<struct sockaddr*>(&client_addr)
       , &addrlen
-      , SOCK_NONBLOCK
+      , 0
     );
 
     if (client_socket >= 0 && _status == SocketStatus::up)
@@ -117,9 +113,7 @@ void LedServer::handlingAcceptLoop()
     }
 
     if (_status == SocketStatus::up)
-    {
         thread_pool.addJob([this](){handlingAcceptLoop();});
-    }
 }
 
 void LedServer::waitingDataLoop()
@@ -127,14 +121,10 @@ void LedServer::waitingDataLoop()
     {
         std::lock_guard lock(client_mutex);
 
-        for (auto it = client_list.begin(), end = client_list.end(); it != end; ++it)
+        for (auto& client : client_list)
         {
-            auto& client = *it;
-
             if (not client)
-            {
                 continue;
-            }
 
             if (DataBuffer data = client->loadData(); not data.empty())
             {
@@ -151,14 +141,17 @@ void LedServer::waitingDataLoop()
             else if (client->_status == mega_camera::SocketStatus::disconnected)
             {
                 thread_pool.addJob(
-                    [this, &client, it]
+                    [this, &client]
                     {
+                        if (not client) return;
                         client->access_mtx.lock();
                         Client* pointer = client.release();
                         client = nullptr;
                         pointer->access_mtx.unlock();
                         disconnect_hndl(*pointer);
-                        client_list.erase(it);
+                        client_list.erase(
+                            std::remove(client_list.begin(), client_list.end(), client),
+                            client_list.end());
                         delete pointer;
                     }
                 );
@@ -168,6 +161,12 @@ void LedServer::waitingDataLoop()
 
     if (_status == SocketStatus::up)
     {
+        while (client_list.size() == 0)
+        {
+            if (_status == SocketStatus::close)
+                return;
+            sleep(1);
+        }
         thread_pool.addJob([this](){ waitingDataLoop(); });
     }
 }
@@ -176,34 +175,14 @@ bool LedServer::enableKeepAlive(Socket socket)
 {
     int flag{1};
 
-    if (setsockopt(
-        socket
-      , SOL_SOCKET
-      , SO_KEEPALIVE
-      , &flag
-      , sizeof(flag)
-    ) == -1) return false;
-    if (setsockopt(
-        socket
-      , IPPROTO_TCP
-      , TCP_KEEPIDLE
-      , &ka_conf.ka_idle
-      , sizeof(ka_conf.ka_idle)
-    ) == -1) return false;
-    if (setsockopt(
-        socket
-      , IPPROTO_TCP
-      , TCP_KEEPINTVL
-      , &ka_conf.ka_intvl
-      , sizeof(ka_conf.ka_intvl)
-    ) == -1) return false;
-    if (setsockopt(
-        socket
-      , IPPROTO_TCP
-      , TCP_KEEPCNT
-      , &ka_conf.ka_cnt
-      , sizeof(ka_conf.ka_cnt)
-    ) == -1) return false;
+    if (setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, &flag,
+        sizeof(flag)) == -1) return false;
+    if (setsockopt(socket, IPPROTO_TCP, TCP_KEEPIDLE, &ka_conf.ka_idle,
+        sizeof(ka_conf.ka_idle)) == -1) return false;
+    if (setsockopt(socket, IPPROTO_TCP, TCP_KEEPINTVL, &ka_conf.ka_intvl,
+        sizeof(ka_conf.ka_intvl)) == -1) return false;
+    if (setsockopt(socket, IPPROTO_TCP, TCP_KEEPCNT, &ka_conf.ka_cnt,
+        sizeof(ka_conf.ka_cnt)) == -1) return false;
 
     return true;
 }
@@ -215,16 +194,13 @@ DataBuffer LedServer::Client::loadData()
     int err;
 
     if (_status != mega_camera::SocketStatus::connected)
-    {
         return DataBuffer();
-    }
 
     using namespace std::chrono_literals;
 
-    // non-blocking mode
-    int answ = recv(socket, reinterpret_cast<char*>(&size), sizeof(size), MSG_DONTWAIT);
+    int answ = recv(socket, reinterpret_cast<char*>(&size), sizeof(size), 0);
 
-    if (not answ)
+    if (answ == 0)
     {
         disconnect();
         return DataBuffer();
@@ -232,36 +208,34 @@ DataBuffer LedServer::Client::loadData()
     else if (answ == -1)
     {
         // Error handle
-        SockLen_t len = sizeof (err);
+        SockLen_t len = sizeof(err);
         getsockopt (socket, SOL_SOCKET, SO_ERROR, &err, &len);
         if (!err)
             err = errno;
 
         switch (err)
         {
-        case 0:
-            break;
-            // Keep alive timeout
-        case ETIMEDOUT:
-        case ECONNRESET:
-        case EPIPE:
-            disconnect();
-            [[fallthrough]];
-            // No data
-        case EAGAIN:
-            return DataBuffer();
-        default:
-            disconnect();
-            std::cerr << "Unhandled error!\n"
-                << "Code: " << err << " Err: " << std::strerror(err) << '\n';
-            return DataBuffer();
+            case 0:
+                break;
+                // Keep alive timeout
+            case ETIMEDOUT:
+            case ECONNRESET:
+            case EPIPE:
+                disconnect();
+                [[fallthrough]];
+                // No data
+            case EAGAIN:
+                return DataBuffer();
+            default:
+                disconnect();
+                std::cerr << "Unhandled error!\n"
+                    << "Code: " << err << " Err: " << std::strerror(err) << '\n';
+                return DataBuffer();
         }
     }
 
     if (not size)
-    {
         return DataBuffer();
-    }
 
     buffer.resize(size);
     recv(socket, buffer.data(), buffer.size(), 0);
@@ -275,9 +249,7 @@ mega_camera::SocketStatus LedServer::Client::disconnect()
     _status = mega_camera::SocketStatus::disconnected;
 
     if (socket == -1)
-    {
         return _status;
-    }
 
     shutdown(socket, SD_BOTH);
     close(socket);
@@ -286,26 +258,22 @@ mega_camera::SocketStatus LedServer::Client::disconnect()
     return _status;
 }
 
-bool LedServer::Client::sendData(std::string str) const
+bool LedServer::Client::sendData(const std::string str) const
 {
     const char *buffer = str.data();
-    size_t size = str.length();
+    uint32_t size = str.length();
 
     if (_status != mega_camera::SocketStatus::connected)
-    {
         return false;
-    }
 
-    void* send_buffer = malloc(size + sizeof (uint32_t));
-    memcpy(reinterpret_cast<char*>(send_buffer) + sizeof(uint32_t), buffer, size);
-    *reinterpret_cast<uint32_t*>(send_buffer) = size;
+    char* send_buffer = new char[size + sizeof(uint32_t)];
+    memcpy(send_buffer + sizeof(uint32_t), buffer, size);
+    memcpy(send_buffer, &size, sizeof(uint32_t));
 
-    if (send(socket, reinterpret_cast<char*>(send_buffer), size + sizeof (int), 0) < 0)
-    {
+    if (send(socket, send_buffer, size + sizeof(uint32_t), MSG_NOSIGNAL) < 0)
         return false;
-    }
 
-    free(send_buffer);
+    delete[] send_buffer;
     return true;
 }
 
@@ -316,7 +284,8 @@ LedServer::Client::Client(Socket _socket, SocketAddr_in _address)
 
 LedServer::Client::~Client()
 {
-    if (socket == -1) return;
+    if (socket == -1)
+        return;
     shutdown(socket, SD_BOTH);
     close(socket);
 }

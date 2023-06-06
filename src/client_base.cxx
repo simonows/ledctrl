@@ -4,6 +4,7 @@
 #include <cstring>
 #include <iostream>
 
+
 using namespace mega_camera;
 
 void LedClient::handle_recv_thread()
@@ -17,7 +18,6 @@ void LedClient::handle_recv_thread()
                 std::lock_guard lock(handle_mutex);
                 handler_func(std::move(data));
             }
-            else if (_status != SocketStatus::connected) return;
         }
     }
     catch (std::exception& except)
@@ -29,17 +29,12 @@ void LedClient::handle_recv_thread()
 LedClient::~LedClient()
 {
     disconnect();
-
-    if (recv_thread) recv_thread->join();
-    delete recv_thread;
 }
 
-SocketStatus LedClient::connectTo(const std::string &host, uint16_t port) noexcept
+SocketStatus LedClient::connectTo(const std::string &host, const uint16_t port) noexcept
 {
     if ((client_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0)
-    {
         return _status = SocketStatus::err_socket_init;
-    }
 
     new(&address) SocketAddr_in;
     address.sin_family = AF_INET;
@@ -54,21 +49,18 @@ SocketStatus LedClient::connectTo(const std::string &host, uint16_t port) noexce
     return _status = SocketStatus::connected;
 }
 
-SocketStatus LedClient::disconnect() noexcept
+SocketStatus LedClient::disconnect()
 {
-    if (_status != SocketStatus::connected)
-    {
+    if (_status == SocketStatus::disconnected ||
+        _status == SocketStatus::err_socket_connect)
         return _status;
-    }
 
     _status = SocketStatus::disconnected;
-
-    if (recv_thread) recv_thread->join();
-    //delete recv_thread;
-
     shutdown(client_socket, SD_BOTH);
+    recv_thread.join();
     close(client_socket);
-    return _status;
+
+    return static_cast<SocketStatus>(_status);
 }
 
 DataBuffer LedClient::loadData()
@@ -77,18 +69,18 @@ DataBuffer LedClient::loadData()
     uint32_t size;
     int err;
 
-    int answ = recv(client_socket, reinterpret_cast<char*>(&size), sizeof(size), MSG_DONTWAIT);
+    int answ = recv(client_socket, &size, sizeof(size), 0);
 
-    if (!answ)
+    if (answ == 0)
     {
-        disconnect();
         return DataBuffer();
     }
     else if (answ == -1)
     {
-        SockLen_t len = sizeof (err);
-        getsockopt (client_socket, SOL_SOCKET, SO_ERROR, &err, &len);
-        if (!err) err = errno;
+        SockLen_t len = sizeof(err);
+        getsockopt(client_socket, SOL_SOCKET, SO_ERROR, &err, &len);
+        if (!err)
+            err = errno;
 
         switch (err)
         {
@@ -97,45 +89,38 @@ DataBuffer LedClient::loadData()
             case ETIMEDOUT:
             case ECONNRESET:
             case EPIPE:
-                disconnect();
-                [[fallthrough]];
+                _status = SocketStatus::err_socket_read;
+                return DataBuffer();
             case EAGAIN:
                 return DataBuffer();
             default:
-                disconnect();
+                _status = SocketStatus::err_socket_unused;
                 return DataBuffer();
         }
     }
 
-    if (!size)
-    {
+    if (size > 65536)
         return DataBuffer();
-    }
+
     buffer.resize(size);
-    recv(client_socket, reinterpret_cast<char*>(buffer.data()), buffer.size(), 0);
-    return buffer;
+    answ = recv(client_socket, buffer.data(), buffer.size(), 0);
+
+    return answ > 0 ? buffer : DataBuffer();
 }
 
-void LedClient::setHandler(LedClient::handler_function_t handler)
+void LedClient::setHandler(const LedClient::handler_function_t handler)
 {
     {
         std::lock_guard lock(handle_mutex);
         handler_func = handler;
     }
 
-    if (recv_thread) return;
-    recv_thread = new std::thread(&LedClient::handle_recv_thread, this);
+    std::thread th = std::thread(&LedClient::handle_recv_thread, this);
+    recv_thread = std::move(th);
 }
 
-void LedClient::joinHandler()
-{
-    if (recv_thread)
-    {
-        recv_thread->join();
-    }
-}
 
-bool LedClient::sendData(std::string str) const
+bool LedClient::sendData(const std::string str) const
 {
     const char *buffer = str.data();
     size_t size = str.length();
@@ -143,8 +128,9 @@ bool LedClient::sendData(std::string str) const
 
     memcpy(reinterpret_cast<char*>(send_buffer) + sizeof(int), buffer, size);
     *reinterpret_cast<int*>(send_buffer) = size;
-    if (send(client_socket, reinterpret_cast<char*>(send_buffer), size +
-        sizeof(int), 0) < 0) return false;
+
+    if (send(client_socket, reinterpret_cast<char*>(send_buffer), size + sizeof(int), 0) < 0)
+        return false;
 
     free(send_buffer);
     return true;

@@ -25,9 +25,9 @@ class LedClient : public LedClientBase
     std::mutex handle_mutex;
     std::function<void(DataBuffer)> handler_func = [](DataBuffer) noexcept {};
 
-    std::thread *recv_thread;
+    std::thread recv_thread;
 
-    SocketStatus _status;
+    std::atomic<SocketStatus> _status;
 
     void handle_recv_thread();
 
@@ -38,7 +38,7 @@ public:
         address()
       , client_socket()
       , handle_mutex()
-      , recv_thread(nullptr)
+      , recv_thread()
       , _status(SocketStatus::disconnected)
     {}
 
@@ -48,13 +48,12 @@ public:
     virtual ~LedClient() override;
 
     SocketStatus connectTo(const std::string&, uint16_t port) noexcept;
-    virtual SocketStatus disconnect() noexcept override;
+    virtual SocketStatus disconnect() override;
 
     virtual SocketStatus getStatus() const override { return _status; }
 
     virtual DataBuffer loadData() override;
     void setHandler(handler_function_t handler);
-    void joinHandler();
 
     virtual bool sendData(std::string) const override;
     virtual SocketType getType() const override {return SocketType::client_socket;}
