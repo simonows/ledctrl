@@ -1,3 +1,6 @@
+/*!
+ * \brief Server implementation.
+*/
 #include <ledctrl/server_base.h>
 
 #include <iostream>
@@ -7,37 +10,18 @@
 
 using namespace mega_camera;
 
-LedServer::LedServer(
-    const uint16_t _port
-  , KeepAliveConfig _ka_conf
-  , handler_function_t _handler
-  , con_handler_function_t _connect_hndl
-  , con_handler_function_t _disconnect_hndl
-  , uint _thread_count
-) : serv_socket()
-  , port(_port)
-  , handler(_handler)
-  , connect_hndl(_connect_hndl)
-  , disconnect_hndl(_disconnect_hndl)
-  , thread_pool(_thread_count)
-  , ka_conf(_ka_conf)
-  , client_list()
-  , client_mutex()
-{}
-
-LedServer::~LedServer()
-{
-    if (_status == SocketStatus::up)
-        stop();
-}
-
+/*!
+ * \brief Starting the server.
+ *
+ * \return Socket status.
+*/
 LedServer::SocketStatus LedServer::start()
 {
     int flag{true};
     SocketAddr_in address;
 
     if (_status == SocketStatus::up)
-        stop();
+        return _status;
 
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
@@ -66,6 +50,14 @@ LedServer::SocketStatus LedServer::start()
     return _status;
 }
 
+/*!
+ * \brief Stoping the server.
+ *
+ * A blocking socket is used. The socket cause SIGPIPE in case shutdown.
+ * SIGPIPE was disabled for normal shutdown. Also it blocks recv, but after
+ * closing, recv returns zero, which is processed according to the status and
+ * leads to disconnection.
+*/
 void LedServer::stop()
 {
     _status = SocketStatus::close;
@@ -77,17 +69,23 @@ void LedServer::stop()
     client_list.clear();
 }
 
+/*!
+ * \brief Simple join.
+*/
 void LedServer::joinLoop()
 {
     thread_pool.wait();
 }
 
+/*!
+ * \brief The task of accepting new connections.
+*/
 void LedServer::handlingAcceptLoop()
 {
     SockLen_t addrlen = sizeof(SocketAddr_in);
     SocketAddr_in client_addr;
 
-    // Accept new connection in blocking mode.
+    //! Accept new connection in blocking mode.
     Socket client_socket = accept4(
         serv_socket
       , reinterpret_cast<struct sockaddr*>(&client_addr)
@@ -116,6 +114,9 @@ void LedServer::handlingAcceptLoop()
         thread_pool.addJob([this](){handlingAcceptLoop();});
 }
 
+/*!
+ * \brief The task of waiting new data arrived.
+*/
 void LedServer::waitingDataLoop()
 {
     {
@@ -163,6 +164,7 @@ void LedServer::waitingDataLoop()
     {
         while (client_list.size() == 0)
         {
+            //! Sleep when no clients
             if (_status == SocketStatus::close)
                 return;
             sleep(1);
@@ -171,6 +173,12 @@ void LedServer::waitingDataLoop()
     }
 }
 
+/*!
+ * \brief Enable KeepAlive parameters.
+ *
+ * \param[in] socket Enabled socket structure.
+ * \return Status of the applying.
+*/
 bool LedServer::enableKeepAlive(Socket socket)
 {
     int flag{1};
@@ -187,6 +195,11 @@ bool LedServer::enableKeepAlive(Socket socket)
     return true;
 }
 
+/*!
+ * \brief Receiving data.
+ *
+ * \return Data buffer as vector of char, .size() == 0 otherwise.
+*/
 DataBuffer LedServer::Client::loadData()
 {
     DataBuffer buffer;
@@ -243,7 +256,11 @@ DataBuffer LedServer::Client::loadData()
     return buffer;
 }
 
-
+/*!
+ * \brief Disconnecting the client.
+ *
+ * \return Socket status.
+*/
 mega_camera::SocketStatus LedServer::Client::disconnect()
 {
     _status = mega_camera::SocketStatus::disconnected;
@@ -258,6 +275,11 @@ mega_camera::SocketStatus LedServer::Client::disconnect()
     return _status;
 }
 
+/*!
+ * \brief Sending data.
+ *
+ * \param[in] str Data to send.
+*/
 bool LedServer::Client::sendData(const std::string str) const
 {
     const char *buffer = str.data();
@@ -277,10 +299,33 @@ bool LedServer::Client::sendData(const std::string str) const
     return true;
 }
 
+LedServer::LedServer(
+    const uint16_t _port
+  , KeepAliveConfig _ka_conf
+  , handler_function_t _handler
+  , con_handler_function_t _connect_hndl
+  , con_handler_function_t _disconnect_hndl
+  , uint _thread_count
+) : serv_socket()
+  , thread_pool(_thread_count)
+  , port(_port)
+  , handler(_handler)
+  , connect_hndl(_connect_hndl)
+  , disconnect_hndl(_disconnect_hndl)
+  , ka_conf(_ka_conf)
+  , client_list()
+  , client_mutex()
+{}
+
 
 LedServer::Client::Client(Socket _socket, SocketAddr_in _address)
   : access_mtx(), address(_address), socket(_socket) {}
 
+LedServer::~LedServer()
+{
+    if (_status == SocketStatus::up)
+        stop();
+}
 
 LedServer::Client::~Client()
 {

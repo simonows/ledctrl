@@ -1,5 +1,8 @@
-#ifndef __LEDCLIENT_H__
-#define __LEDCLIENT_H__
+/*!
+ * \brief The client part header.
+*/
+#ifndef __LED_CLIENT_H__
+#define __LED_CLIENT_H__
 
 #include <ledctrl/general.h>
 
@@ -12,23 +15,23 @@
 #include <stdlib.h>
 #include <memory.h>
 
-typedef int socket_t;
-
 namespace mega_camera
 {
 
+/*!
+ * \brief Network Client class.
+ *
+ * The class is needed to describe the entity on the client side. An object of
+ * this class allows to connect the server.
+*/
 class LedClient : public LedClientBase
 {
     SocketAddr_in address;
-    socket_t client_socket;
-
+    Socket client_socket;
     std::mutex handle_mutex;
     std::function<void(DataBuffer)> handler_func = [](DataBuffer) noexcept {};
-
     std::thread recv_thread;
-
     std::atomic<SocketStatus> _status;
-
     void handle_recv_thread();
 
 public:
@@ -49,16 +52,13 @@ public:
 
     SocketStatus connectTo(const std::string&, uint16_t port) noexcept;
     virtual SocketStatus disconnect() override;
-
     virtual SocketStatus getStatus() const override { return _status; }
-
     virtual DataBuffer loadData() override;
     void setHandler(handler_function_t handler);
-
     virtual bool sendData(std::string) const override;
     virtual SocketType getType() const override {return SocketType::client_socket;}
 };
 
 }
 
-#endif // __LEDCLIENT_H__
+#endif // __LED_CLIENT_H__

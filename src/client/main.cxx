@@ -1,3 +1,6 @@
+/*!
+ * \brief Client's benchmark.
+*/
 #include <ledctrl/client_base.h>
 
 #include <iostream>
@@ -7,6 +10,7 @@
 static const std::string LOCALHOST_IP = "127.0.0.1";
 
 using namespace mega_camera;
+
 
 void run_client(LedClient& client)
 {

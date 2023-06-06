@@ -1,3 +1,6 @@
+/*!
+ * \brief Common definitions of the application.
+*/
 #ifndef __GENERAL_H__
 #define __GENERAL_H__
 
@@ -17,7 +20,6 @@
 #include <condition_variable>
 #include <atomic>
 
-
 namespace mega_camera
 {
 
@@ -25,10 +27,9 @@ typedef socklen_t SockLen_t;
 typedef struct sockaddr_in SocketAddr_in;
 typedef int Socket;
 typedef int ka_prop_t;
-
 typedef std::vector<uint8_t> DataBuffer;
 
-
+//! Keep alive settings.
 struct KeepAliveConfig
 {
     ka_prop_t ka_idle = 100;
@@ -36,6 +37,7 @@ struct KeepAliveConfig
     ka_prop_t ka_cnt = 10;
 };
 
+//! A set of possible socket states.
 enum class SocketStatus : uint8_t
 {
     connected = 0,
@@ -47,12 +49,14 @@ enum class SocketStatus : uint8_t
     disconnected
 };
 
+//! A set of possible socket types.
 enum class SocketType : uint8_t
 {
     client_socket = 0,
     server_socket
 };
 
+//! Base class for client and server.
 struct LedClientBase
 {
     typedef SocketStatus status;

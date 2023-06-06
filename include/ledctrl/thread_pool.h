@@ -1,3 +1,6 @@
+/*!
+ * \brief Thread Pool class header.
+*/
 #include <queue>
 #include <vector>
 #include <functional>
@@ -7,6 +10,13 @@
 #include <atomic>
 #include <iostream>
 
+/*!
+ * \brief Thread pool realization.
+ *
+ * The name speaks for itself. The creation of an object contains running
+ * of n waiting threads. As the task is added, some of the threads will
+ * proceed to it execution.
+*/
 class ThreadPool
 {
     std::vector<std::thread> thread_pool;

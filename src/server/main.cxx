@@ -1,3 +1,6 @@
+/*!
+ * \brief Server's benchmark.
+*/
 #include <ledctrl/server_base.h>
 #include <iostream>
 #include <signal.h>

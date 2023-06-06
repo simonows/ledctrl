@@ -1,3 +1,6 @@
+/*!
+ * \brief Server functionality.
+*/
 #ifndef __LED_SERVER_H__
 #define __LED_SERVER_H__
 
@@ -18,9 +21,15 @@
 #include <stdlib.h>
 
 
-namespace mega_camera {
+namespace mega_camera
+{
 
-
+/*!
+ * \brief Network Server class
+ *
+ * The server object is based on a thread pool and a job queue. As the tasks
+ * arrive, it is distributed among the threads.
+*/
 struct LedServer
 {
     struct Client;
@@ -28,6 +37,7 @@ struct LedServer
     typedef std::function<void(DataBuffer, Client&)> handler_function_t;
     typedef std::function<void(Client&)> con_handler_function_t;
 
+    //! A set of possible socket states.
     enum class SocketStatus : uint8_t
     {
         up = 0,
@@ -58,6 +68,8 @@ struct LedServer
 
 private:
     Socket serv_socket;
+    ThreadPool thread_pool;
+
     uint16_t port;
     SocketStatus _status = SocketStatus::close;
 
@@ -67,7 +79,6 @@ private:
     con_handler_function_t connect_hndl = default_connection_handler;
     con_handler_function_t disconnect_hndl = default_connection_handler;
 
-    ThreadPool thread_pool;
     KeepAliveConfig ka_conf;
     std::list<std::unique_ptr<Client>> client_list;
     std::mutex client_mutex;
@@ -79,7 +90,9 @@ private:
     void server_business(DataBuffer, LedServer::Client&);
 };
 
-
+/*!
+ * \brief The client representaion on backend side.
+*/
 struct LedServer::Client : public LedClientBase
 {
     friend struct LedServer;

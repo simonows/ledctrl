@@ -1,12 +1,17 @@
+/*!
+ * \brief Client implementation.
+*/
 #include <ledctrl/client_base.h>
 
 #include <stdio.h>
 #include <cstring>
 #include <iostream>
 
-
 using namespace mega_camera;
 
+/*!
+ * Processing data coming from a socket.
+*/
 void LedClient::handle_recv_thread()
 {
     try
@@ -26,11 +31,13 @@ void LedClient::handle_recv_thread()
     }
 }
 
-LedClient::~LedClient()
-{
-    disconnect();
-}
-
+/*!
+ * Connecting to the server.
+ *
+ * \param[in] host Backend address.
+ * \param[in] port Backend port.
+ * \return Socket statue.
+*/
 SocketStatus LedClient::connectTo(const std::string &host, const uint16_t port) noexcept
 {
     if ((client_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0)
@@ -49,6 +56,14 @@ SocketStatus LedClient::connectTo(const std::string &host, const uint16_t port) 
     return _status = SocketStatus::connected;
 }
 
+/*!
+ * \brief Disconnecting from the server.
+ *
+ * A blocking socket is used. It blocks recv, but after closing, recv returns
+ * zero, which is processed according to the status and leads to disconnection.
+ *
+ * \return Socket statue.
+*/
 SocketStatus LedClient::disconnect()
 {
     if (_status == SocketStatus::disconnected ||
@@ -63,12 +78,18 @@ SocketStatus LedClient::disconnect()
     return static_cast<SocketStatus>(_status);
 }
 
+/*!
+ * \brief Receiving data.
+ *
+ * \return Data buffer as vector of char, .size() == 0 otherwise.
+*/
 DataBuffer LedClient::loadData()
 {
     DataBuffer buffer;
     uint32_t size;
     int err;
 
+    //! Blocking mode.
     int answ = recv(client_socket, &size, sizeof(size), 0);
 
     if (answ == 0)
@@ -108,6 +129,11 @@ DataBuffer LedClient::loadData()
     return answ > 0 ? buffer : DataBuffer();
 }
 
+/*!
+ * \brief Setting receiving handler.
+ *
+ * \param[in] handler Handler function to set.
+*/
 void LedClient::setHandler(const LedClient::handler_function_t handler)
 {
     {
@@ -119,7 +145,11 @@ void LedClient::setHandler(const LedClient::handler_function_t handler)
     recv_thread = std::move(th);
 }
 
-
+/*!
+ * \brief Sending data.
+ *
+ * \param[in] str Data to send.
+*/
 bool LedClient::sendData(const std::string str) const
 {
     const char *buffer = str.data();
@@ -134,4 +164,9 @@ bool LedClient::sendData(const std::string str) const
 
     free(send_buffer);
     return true;
+}
+
+LedClient::~LedClient()
+{
+    disconnect();
 }
