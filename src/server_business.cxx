@@ -157,7 +157,7 @@ std::string get_led_rate(std::string args)
 
 void LedServer::print_screen(void)
 {
-   // system("clear");
+    system("clear");
     std::cout << "State: ";
     switch (target.state)
     {

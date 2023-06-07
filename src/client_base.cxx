@@ -70,11 +70,17 @@ SocketStatus LedClient::disconnect()
         _status == SocketStatus::err_socket_connect)
         return _status;
 
-    _status = SocketStatus::disconnected;
-    shutdown(_socket, SD_BOTH);
-    recv_thread.join();
-    close(_socket);
-
+    try
+    {
+        _status = SocketStatus::disconnected;
+        shutdown(_socket, SD_BOTH);
+        if (recv_thread.joinable()) recv_thread.join();
+        close(_socket);
+    }
+    catch (std::exception& except)
+    {
+        std::cerr << except.what() << std::endl;
+    }
     return static_cast<SocketStatus>(_status);
 }
 
@@ -135,7 +141,7 @@ DataBuffer LedClientBase::loadData()
  *
  * \param[in] str Data to send.
 */
-bool LedClientBase::sendData(const std::string str) const
+bool LedClientBase::sendData(const std::string str) const noexcept
 {
     const char *buffer = str.data();
     uint32_t size = str.length();

@@ -71,7 +71,7 @@ struct LedClientBase
     virtual SocketStatus getStatus() const = 0;
     virtual SocketType getType() const = 0;
     DataBuffer loadData();
-    bool sendData(std::string) const;
+    bool sendData(std::string) const noexcept;
     LedClientBase(): _socket(-1), _status(SocketStatus::close){}
 
 protected:
