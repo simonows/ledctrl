@@ -23,6 +23,8 @@
 namespace mega_camera
 {
 
+static const size_t MAX_MESSAGE_SIZE = 65536;
+
 typedef socklen_t SockLen_t;
 typedef struct sockaddr_in SocketAddr_in;
 typedef int Socket;
@@ -46,7 +48,11 @@ enum class SocketStatus : uint8_t
     err_socket_connect,
     err_socket_read,
     err_socket_unused,
-    disconnected
+    err_scoket_keep_alive,
+    err_socket_listening,
+    disconnected,
+    up,
+    close
 };
 
 //! A set of possible socket types.
@@ -63,9 +69,14 @@ struct LedClientBase
     virtual ~LedClientBase() {};
     virtual SocketStatus disconnect() = 0;
     virtual SocketStatus getStatus() const = 0;
-    virtual bool sendData(std::string) const = 0;
-    virtual DataBuffer loadData() = 0;
     virtual SocketType getType() const = 0;
+    DataBuffer loadData();
+    bool sendData(std::string) const;
+    LedClientBase(): _socket(-1), _status(SocketStatus::close){}
+
+protected:
+    Socket _socket;
+    std::atomic<SocketStatus> _status;
 };
 
 }

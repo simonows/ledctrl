@@ -40,7 +40,7 @@ void LedClient::handle_recv_thread()
 */
 SocketStatus LedClient::connectTo(const std::string &host, const uint16_t port) noexcept
 {
-    if ((client_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0)
+    if ((_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0)
         return _status = SocketStatus::err_socket_init;
 
     new(&address) SocketAddr_in;
@@ -48,9 +48,9 @@ SocketStatus LedClient::connectTo(const std::string &host, const uint16_t port) 
     address.sin_addr.s_addr = inet_addr(host.c_str());
     address.sin_port = htons(port);
 
-    if (connect(client_socket, reinterpret_cast<sockaddr *>(&address), sizeof(address)) != 0)
+    if (connect(_socket, reinterpret_cast<sockaddr *>(&address), sizeof(address)) != 0)
     {
-        close(client_socket);
+        close(_socket);
         return _status = SocketStatus::err_socket_connect;
     }
     return _status = SocketStatus::connected;
@@ -71,9 +71,9 @@ SocketStatus LedClient::disconnect()
         return _status;
 
     _status = SocketStatus::disconnected;
-    shutdown(client_socket, SD_BOTH);
+    shutdown(_socket, SD_BOTH);
     recv_thread.join();
-    close(client_socket);
+    close(_socket);
 
     return static_cast<SocketStatus>(_status);
 }
@@ -83,23 +83,24 @@ SocketStatus LedClient::disconnect()
  *
  * \return Data buffer as vector of char, .size() == 0 otherwise.
 */
-DataBuffer LedClient::loadData()
+DataBuffer LedClientBase::loadData()
 {
     DataBuffer buffer;
     uint32_t size;
     int err;
 
     //! Blocking mode.
-    int answ = recv(client_socket, &size, sizeof(size), 0);
+    int answ = recv(_socket, &size, sizeof(size), 0);
 
     if (answ == 0)
     {
+        _status = SocketStatus::disconnected;
         return DataBuffer();
     }
     else if (answ == -1)
     {
         SockLen_t len = sizeof(err);
-        getsockopt(client_socket, SOL_SOCKET, SO_ERROR, &err, &len);
+        getsockopt(_socket, SOL_SOCKET, SO_ERROR, &err, &len);
         if (!err)
             err = errno;
 
@@ -120,13 +121,37 @@ DataBuffer LedClient::loadData()
         }
     }
 
-    if (size > 65536)
+    if (size > MAX_MESSAGE_SIZE)
         return DataBuffer();
 
     buffer.resize(size);
-    answ = recv(client_socket, buffer.data(), buffer.size(), 0);
+    answ = recv(_socket, buffer.data(), buffer.size(), 0);
 
     return answ > 0 ? buffer : DataBuffer();
+}
+
+/*!
+ * \brief Sending data.
+ *
+ * \param[in] str Data to send.
+*/
+bool LedClientBase::sendData(const std::string str) const
+{
+    const char *buffer = str.data();
+    uint32_t size = str.length();
+    char send_buffer[MAX_MESSAGE_SIZE];
+
+    if (size > MAX_MESSAGE_SIZE - sizeof(uint32_t) ||
+        _status != mega_camera::SocketStatus::connected)
+            return false;
+
+    memcpy(send_buffer + sizeof(uint32_t), buffer, size);
+    memcpy(send_buffer, &size, sizeof(uint32_t));
+
+    if (send(_socket, send_buffer, size + sizeof(uint32_t), MSG_NOSIGNAL) < 0)
+        return false;
+
+    return true;
 }
 
 /*!
@@ -143,27 +168,6 @@ void LedClient::setHandler(const LedClient::handler_function_t handler)
 
     std::thread th = std::thread(&LedClient::handle_recv_thread, this);
     recv_thread = std::move(th);
-}
-
-/*!
- * \brief Sending data.
- *
- * \param[in] str Data to send.
-*/
-bool LedClient::sendData(const std::string str) const
-{
-    const char *buffer = str.data();
-    size_t size = str.length();
-    void* send_buffer = malloc(size + sizeof(int));
-
-    memcpy(reinterpret_cast<char*>(send_buffer) + sizeof(int), buffer, size);
-    *reinterpret_cast<int*>(send_buffer) = size;
-
-    if (send(client_socket, reinterpret_cast<char*>(send_buffer), size + sizeof(int), 0) < 0)
-        return false;
-
-    free(send_buffer);
-    return true;
 }
 
 LedClient::~LedClient()

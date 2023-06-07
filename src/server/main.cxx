@@ -46,7 +46,7 @@ int main()
 
     try
     {
-        if (server.start() == LedServer::SocketStatus::up)
+        if (server.start() == SocketStatus::up)
         {
             server.joinLoop();
             std::cout << std::endl << "Server stopped" << std::endl;

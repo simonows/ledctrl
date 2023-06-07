@@ -37,17 +37,6 @@ struct LedServer
     typedef std::function<void(DataBuffer, Client&)> handler_function_t;
     typedef std::function<void(Client&)> con_handler_function_t;
 
-    //! A set of possible socket states.
-    enum class SocketStatus : uint8_t
-    {
-        up = 0,
-        err_socket_init = 1,
-        err_socket_bind = 2,
-        err_scoket_keep_alive = 3,
-        err_socket_listening = 4,
-        close = 5
-    };
-
     LedServer(
         const uint16_t port,
         KeepAliveConfig ka_conf = {},
@@ -99,16 +88,12 @@ struct LedServer::Client : public LedClientBase
 
     std::mutex access_mtx;
     SocketAddr_in address;
-    Socket socket;
-    mega_camera::SocketStatus _status = mega_camera::SocketStatus::connected;
 
     Client(Socket socket, SocketAddr_in address);
     virtual ~Client() override;
     virtual mega_camera::SocketStatus getStatus() const override { return _status; }
     virtual mega_camera::SocketStatus disconnect() override;
 
-    virtual DataBuffer loadData() override;
-    virtual bool sendData(std::string) const override;
     virtual SocketType getType() const override { return SocketType::server_socket; }
 };
 

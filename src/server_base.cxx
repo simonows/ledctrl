@@ -15,7 +15,7 @@ using namespace mega_camera;
  *
  * \return Socket status.
 */
-LedServer::SocketStatus LedServer::start()
+SocketStatus LedServer::start()
 {
     int flag{true};
     SocketAddr_in address;
@@ -196,67 +196,6 @@ bool LedServer::enableKeepAlive(Socket socket)
 }
 
 /*!
- * \brief Receiving data.
- *
- * \return Data buffer as vector of char, .size() == 0 otherwise.
-*/
-DataBuffer LedServer::Client::loadData()
-{
-    DataBuffer buffer;
-    uint32_t size;
-    int err;
-
-    if (_status != mega_camera::SocketStatus::connected)
-        return DataBuffer();
-
-    using namespace std::chrono_literals;
-
-    int answ = recv(socket, reinterpret_cast<char*>(&size), sizeof(size), 0);
-
-    if (answ == 0)
-    {
-        disconnect();
-        return DataBuffer();
-    }
-    else if (answ == -1)
-    {
-        // Error handle
-        SockLen_t len = sizeof(err);
-        getsockopt (socket, SOL_SOCKET, SO_ERROR, &err, &len);
-        if (!err)
-            err = errno;
-
-        switch (err)
-        {
-            case 0:
-                break;
-                // Keep alive timeout
-            case ETIMEDOUT:
-            case ECONNRESET:
-            case EPIPE:
-                disconnect();
-                [[fallthrough]];
-                // No data
-            case EAGAIN:
-                return DataBuffer();
-            default:
-                disconnect();
-                std::cerr << "Unhandled error!\n"
-                    << "Code: " << err << " Err: " << std::strerror(err) << '\n';
-                return DataBuffer();
-        }
-    }
-
-    if (not size)
-        return DataBuffer();
-
-    buffer.resize(size);
-    recv(socket, buffer.data(), buffer.size(), 0);
-
-    return buffer;
-}
-
-/*!
  * \brief Disconnecting the client.
  *
  * \return Socket status.
@@ -265,38 +204,14 @@ mega_camera::SocketStatus LedServer::Client::disconnect()
 {
     _status = mega_camera::SocketStatus::disconnected;
 
-    if (socket == -1)
+    if (_socket == -1)
         return _status;
 
-    shutdown(socket, SD_BOTH);
-    close(socket);
-    socket = -1;
+    shutdown(_socket, SD_BOTH);
+    close(_socket);
+    _socket = -1;
 
     return _status;
-}
-
-/*!
- * \brief Sending data.
- *
- * \param[in] str Data to send.
-*/
-bool LedServer::Client::sendData(const std::string str) const
-{
-    const char *buffer = str.data();
-    uint32_t size = str.length();
-
-    if (_status != mega_camera::SocketStatus::connected)
-        return false;
-
-    char* send_buffer = new char[size + sizeof(uint32_t)];
-    memcpy(send_buffer + sizeof(uint32_t), buffer, size);
-    memcpy(send_buffer, &size, sizeof(uint32_t));
-
-    if (send(socket, send_buffer, size + sizeof(uint32_t), MSG_NOSIGNAL) < 0)
-        return false;
-
-    delete[] send_buffer;
-    return true;
 }
 
 LedServer::LedServer(
@@ -306,7 +221,7 @@ LedServer::LedServer(
   , con_handler_function_t _connect_hndl
   , con_handler_function_t _disconnect_hndl
   , uint _thread_count
-) : serv_socket()
+) : serv_socket(-1)
   , thread_pool(_thread_count)
   , port(_port)
   , handler(_handler)
@@ -318,8 +233,8 @@ LedServer::LedServer(
 {}
 
 
-LedServer::Client::Client(Socket _socket, SocketAddr_in _address)
-  : access_mtx(), address(_address), socket(_socket) {}
+LedServer::Client::Client(Socket psocket, SocketAddr_in _address)
+  : access_mtx(), address(_address) { _socket = psocket; _status = SocketStatus::connected; }
 
 LedServer::~LedServer()
 {
@@ -329,8 +244,8 @@ LedServer::~LedServer()
 
 LedServer::Client::~Client()
 {
-    if (socket == -1)
+    if (_socket == -1)
         return;
-    shutdown(socket, SD_BOTH);
-    close(socket);
+    shutdown(_socket, SD_BOTH);
+    close(_socket);
 }
