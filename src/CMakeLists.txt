@@ -1,6 +1,6 @@
-file(GLOB client_src client_base.cxx client/main.cxx)
-file(GLOB server_src server_base.cxx client_base.cxx server_business.cxx server/main.cxx)
-file(GLOB lib_src server_base.cxx server_business.cxx client_base.cxx)
+file(GLOB client_src client_base.cpp client/main.cpp)
+file(GLOB server_src server_base.cpp client_base.cpp business.cpp server/main.cpp)
+file(GLOB lib_src server_base.cpp business.cpp client_base.cpp)
 
 if (MSYS OR MINGW OR UNIX)
     set (CMAKE_CXX_FLAGS "-g -O0 -pg -Wall -Wextra -Wcast-align -Wc++0x-compat -Wc++14-compat -Wno-cast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Winit-self -Wlogical-op -Wmissing-include-dirs -Wnoexcept -Wold-style-cast -Woverloaded-virtual -Wconditionally-supported -Wconversion-null -Wctor-dtor-privacy -Wredundant-decls -Wdelete-non-virtual-dtor -Wdelete-incomplete -Wshadow -Wsign-conversion -Wsign-promo -Wstrict-null-sentinel -Wstrict-overflow=4 -Wswitch-default -Wundef -Werror -Wno-unused -Weffc++ -Winherited-variadic-ctor -Winvalid-offsetof -Wliteral-suffix -Wnoexcept -Wnon-template-friend -Wnon-virtual-dtor -Woverloaded-virtual -Wpmf-conversions -Wreorder -Wsign-promo -Wsized-deallocation -Wstrict-null-sentinel -Wno-suggest-override -Wsynth -Wno-useless-cast -Wvirtual-move-assign -Wzero-as-null-pointer-constant ")
@@ -14,17 +14,5 @@ add_library(ledctrl SHARED ${lib_src})
 target_include_directories(client PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(server PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(ledctrl PUBLIC ${CMAKE_SOURCE_DIR}/include)
-
-add_custom_target(run)
-add_custom_command(
-    TARGET run POST_BUILD
-    COMMAND ./test -f ../../test/example.txt -m word -v people
-    COMMAND ./test -f ../../test/example.txt -m checksum
-)
-
-add_custom_target(debug)
-add_custom_command(
-    TARGET debug POST_BUILD
-    COMMAND gdb ./test
-)
-
+target_include_directories(server PUBLIC ${CMAKE_SOURCE_DIR}/src/include)
+target_include_directories(ledctrl PUBLIC ${CMAKE_SOURCE_DIR}/src/include)

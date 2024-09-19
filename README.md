@@ -1,11 +1,9 @@
 # LedServer
-Simple Multi-threading TCP/IP Server
+Простой многопоточный TCP/IP Server
 
 ## Сборка
 
 Используется система сборки cmake.
-Поддерживаются сборки:
-* Make (Linux, Mac)
 
 ```zsh
 mkdir build && cd build && cmake .. && make
@@ -22,10 +20,10 @@ mkdir build && cd build && cmake .. && make
 
 ## Структура
 
-* [server_business.cxx](src/server_business.cxx) - Реализация ТЗ
-* [thread_pool.h](include/ledctrl/thread_pool.h) - Пул потоков
-* [client_base.cxx](src/client_base.cxx) - Реализации базовой работы клиента по tcp/ip
-* [server_base.cxx](src/server_base.cxx) - Реализации базовой работы сервера по tcp/ip
-* [main.cxx](src/client/main.cxx) - Клиент
-* [main.cxx](src/server/main.cxx) - Сервер
+* [thread_pool.h](src/include/thread_pool.h) - Пул потоков
+* [client_base.cxx](src/client_base.cxx) - Реализация клиента
+* [server_base.cxx](src/server_base.cxx) - Реализации сервера
+* [main.cxx](src/client/main.cxx) - Тест клиента
+* [main.cxx](src/server/main.cxx) - Тест сервера
+* [business.cxx](src/business.cxx) - Тестовая логика сервера
 
